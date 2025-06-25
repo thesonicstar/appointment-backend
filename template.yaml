@@ -1,0 +1,255 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  appointment-backend
+
+  Sample SAM Template for appointment-backend
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: python3.11
+    LoggingConfig:
+      LogFormat: JSON
+  Api:
+    Auth:
+      DefaultAuthorizer: CognitoAuthorizer
+      AddDefaultAuthorizerToCorsPreflight: false
+      Authorizers:
+        CognitoAuthorizer:
+          UserPoolArn: !GetAtt UserPool.Arn
+
+Resources:
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      Architectures:
+        - x86_64
+      Events:
+        HelloWorld:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+  SlotsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: SlotsTable
+      AttributeDefinitions:
+        - AttributeName: slot_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: slot_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  GetSlotsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: get_slots/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 10
+      Environment:
+        Variables:
+          SLOTS_TABLE: !Ref SlotsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SlotsTable
+      Events:
+        GetSlotsApi:
+          Type: Api
+          Properties:
+            Path: /slots
+            Method: GET
+  AppointmentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AppointmentsTable
+      AttributeDefinitions:
+        - AttributeName: appointment_id
+          AttributeType: S
+        - AttributeName: patient_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: appointment_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: patient_id-index
+          KeySchema:
+            - AttributeName: patient_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+
+  BookAppointmentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: book_appointment/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 10
+      Environment:
+        Variables:
+          SLOTS_TABLE: !Ref SlotsTable
+          APPOINTMENTS_TABLE: !Ref AppointmentsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SlotsTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref AppointmentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SlotsTable
+      Events:
+        BookAppointmentApi:
+          Type: Api
+          Properties:
+            Path: /book
+            Method: POST
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: healthcare-user-pool
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: healthcare-client
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - https://localhost:3000/callback
+      LogoutURLs:
+        - https://localhost:3000/logout
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
+  GetAppointmentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: get_appointments/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 10
+      Environment:
+        Variables:
+          APPOINTMENTS_TABLE: !Ref AppointmentsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref AppointmentsTable
+      Events:
+        GetAppointmentsApi:
+          Type: Api
+          Properties:
+            Path: /my-appointments
+            Method: GET
+  CancelAppointmentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cancel_appointment/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 10
+      Environment:
+        Variables:
+          APPOINTMENTS_TABLE: !Ref AppointmentsTable
+          SLOTS_TABLE: !Ref SlotsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AppointmentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SlotsTable
+      Events:
+        CancelAppointmentApi:
+          Type: Api
+          Properties:
+            Path: /cancel
+            Method: POST
+  RescheduleAppointmentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: reschedule_appointment/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 10
+      Environment:
+        Variables:
+          SLOTS_TABLE: !Ref SlotsTable
+          APPOINTMENTS_TABLE: !Ref AppointmentsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AppointmentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SlotsTable
+      Events:
+        RescheduleAppointmentApi:
+          Type: Api
+          Properties:
+            Path: /reschedule
+            Method: POST
+
+
+
+Outputs:
+  HelloWorldApi:
+    Description: API Gateway endpoint URL for Prod stage for Hello World function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HelloWorldFunction:
+    Description: Hello World Lambda Function ARN
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: Implicit IAM Role created for Hello World function
+    Value: !GetAtt HelloWorldFunctionRole.Arn
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Cognito User Pool App Client ID
+    Value: !Ref UserPoolClient
+
