@@ -1,6 +1,19 @@
 import json
 import boto3
 import os
+import logging
+import configparser  # For reading the config file
+
+# Load config.ini
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(__file__), 'config.ini'))
+
+# Set up logging based on config
+log_level_str = config.get("LOGGING", "LOG_LEVEL", fallback="INFO").upper()
+numeric_level = getattr(logging, log_level_str, logging.INFO)
+
+logger = logging.getLogger()
+logger.setLevel(numeric_level)
 
 dynamodb = boto3.resource("dynamodb")
 appointments_table = dynamodb.Table(os.environ["APPOINTMENTS_TABLE"])
@@ -16,9 +29,11 @@ def lambda_handler(event, context):
 
         # Get appointment
         response = appointments_table.get_item(Key={"appointment_id": appointment_id})
+        logger.info(f"Retrieved appointment: {response}")   
         appointment = response.get("Item")
 
         if not appointment or appointment["patient_id"] != patient_id:
+            logger.warning(f"Unauthorized access or appointment not found for patient {patient_id} and appointment {appointment_id}.")
             return {
                 "statusCode": 403,
                 "body": json.dumps({"error": "Not authorized or appointment not found"})
@@ -31,6 +46,7 @@ def lambda_handler(event, context):
             ExpressionAttributeNames={"#status": "status"},
             ExpressionAttributeValues={":val": "cancelled"}
         )
+        logger.info(f"Appointment {appointment_id} cancelled successfully.")
 
         # Set slot back to available
         slot_id = appointment["slot_id"]
@@ -39,13 +55,15 @@ def lambda_handler(event, context):
             UpdateExpression="SET available = :val",
             ExpressionAttributeValues={":val": True}
         )
-
+        logger.info(f"Slot {slot_id} set back to available.")
         return {
             "statusCode": 200,
             "body": json.dumps({"message": "Appointment cancelled"})
         }
 
     except Exception as e:
+        logger.exception("Error cancelling appointment")
+        logger.error(f"Error cancelling appointment: {str(e)}")
         return {
             "statusCode": 500,
             "body": json.dumps({"error": str(e)})

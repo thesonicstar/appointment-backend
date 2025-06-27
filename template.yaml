@@ -232,6 +232,28 @@ Resources:
           Properties:
             Path: /reschedule
             Method: POST
+  SendRemindersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: send_reminders/
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Timeout: 15
+      Environment:
+        Variables:
+          APPOINTMENTS_TABLE: !Ref AppointmentsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref AppointmentsTable
+        - Statement:
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: "*"  # Can restrict to verified SNS topics if needed
+      Events:
+        ScheduleReminder:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
 
 
 
