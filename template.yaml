@@ -65,6 +65,13 @@ Resources:
           Properties:
             Path: /slots
             Method: GET
+            Auth:
+              Authorizer: NONE # No authentication for getting slots - this is public and can be accessed without authentication, temporarily.
+        OptionsSlotsApi:
+          Type: Api
+          Properties:
+            Path: /slots
+            Method: OPTIONS
   AppointmentsTable:
     Type: AWS::DynamoDB::Table
     Properties:

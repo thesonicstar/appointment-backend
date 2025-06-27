@@ -2,7 +2,7 @@ import json
 import boto3
 import os
 from boto3.dynamodb.conditions import Attr
-import configparser  # For reading the config file
+import configparser
 import logging
 
 # Load config.ini
@@ -20,6 +20,18 @@ dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["SLOTS_TABLE"])
 
 def lambda_handler(event, context):
+    # Handle CORS preflight request
+    if event.get("httpMethod") == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            "body": ""
+        }
+
     try:
         response = table.scan(
             FilterExpression=Attr("available").eq(True)
@@ -27,16 +39,22 @@ def lambda_handler(event, context):
         logger.debug(f"Retrieved available slots: {response}")
         return {
             "statusCode": 200,
-            "headers": {"Content-Type": "application/json"},
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
             "body": json.dumps(response.get("Items", []))
         }
     except Exception as e:
         logger.exception("Error retrieving available slots")
-        logger.error(f"Error retrieving available slots: {str(e)}")
         return {
             "statusCode": 500,
+            "headers": {
+                "Access-Control-Allow-Origin": "*"
+            },
             "body": json.dumps({"error": str(e)})
         }
-# This code defines a Lambda function that retrieves available slots from a DynamoDB table.
-# It scans the table for items where the 'available' attribute is True and returns them as a JSON response.
-# If an error occurs, it returns a 500 status code with the error message.
+
+
