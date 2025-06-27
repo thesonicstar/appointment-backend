@@ -118,6 +118,13 @@ Resources:
           Properties:
             Path: /book
             Method: POST
+            Auth:
+              Authorizer: NONE # No authentication for getting slots - this is public and can be accessed without authentication, temporarily.
+        OptionsSlotsApi:
+          Type: Api
+          Properties:
+            Path: /book
+            Method: OPTIONS
 
   ApplicationResourceGroup:
     Type: AWS::ResourceGroups::Group
