@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 
 interface Slot {
   slot_id: string;
@@ -11,11 +12,7 @@ export default function SlotList() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [bookingError, setBookingError] = useState('');
-  const [bookingSuccess, setBookingSuccess] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchSlots() {
@@ -35,31 +32,8 @@ export default function SlotList() {
     fetchSlots();
   }, []);
 
-  const handleBooking = async () => {
-    if (!selectedSlot) return;
-
-    try {
-      const res = await fetch('https://7x307khvxf.execute-api.eu-west-2.amazonaws.com/Prod/book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slot_id: selectedSlot.slot_id,
-          patient_id: 'guest-user', // hardcoded for now
-          contact_email: email,
-          contact_phone: phone,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Booking failed');
-
-      setBookingSuccess('Appointment booked successfully!');
-      setSelectedSlot(null);
-      setEmail('');
-      setPhone('');
-    } catch (err: any) {
-      setBookingError(err.message || 'Booking error');
-    }
+  const handleBookClick = (slotId: string) => {
+    router.push(`/book?slotId=${slotId}`);
   };
 
   if (loading) return <p>Loading available slots...</p>;
@@ -70,45 +44,16 @@ export default function SlotList() {
       <h2>Available Slots</h2>
       <ul>
         {slots.map((slot) => (
-          <li key={slot.slot_id}>
-            <strong>{slot.datetime}</strong> with Dr. {slot.doctor_id}{' '}
-            <button onClick={() => {
-              setSelectedSlot(slot);
-              setBookingSuccess('');
-              setBookingError('');
-            }}>
-              Book
-            </button>
+          <li key={slot.slot_id} style={{ marginBottom: '1rem' }}>
+            <strong>{slot.datetime}</strong> with Dr. {slot.doctor_id}
+            <br />
+            <button onClick={() => handleBookClick(slot.slot_id)}>Book Now</button>
           </li>
         ))}
       </ul>
-
-      {selectedSlot && (
-        <div style={{ marginTop: '1rem', padding: '1rem', border: '1px solid #ccc' }}>
-          <h3>Booking for {selectedSlot.datetime}</h3>
-          <input
-            type="email"
-            placeholder="Your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ display: 'block', marginBottom: '0.5rem' }}
-          />
-          <input
-            type="tel"
-            placeholder="Your phone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            style={{ display: 'block', marginBottom: '0.5rem' }}
-          />
-          <button onClick={handleBooking}>Confirm Booking</button>
-          <button onClick={() => setSelectedSlot(null)} style={{ marginLeft: '0.5rem' }}>
-            Cancel
-          </button>
-
-          {bookingError && <p style={{ color: 'red' }}>{bookingError}</p>}
-          {bookingSuccess && <p style={{ color: 'green' }}>{bookingSuccess}</p>}
-        </div>
-      )}
     </div>
   );
 }
+// This component fetches available slots from the API and displays them in a list.
+// Each slot has a "Book Now" button that navigates to the booking page with the slot ID as a query parameter.
+// The component handles loading and error states, providing feedback to the user.

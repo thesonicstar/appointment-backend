@@ -20,6 +20,19 @@ appointments_table = dynamodb.Table(os.environ["APPOINTMENTS_TABLE"])
 slots_table = dynamodb.Table(os.environ["SLOTS_TABLE"])
 
 def lambda_handler(event, context):
+        # Handle CORS preflight
+    if event.get("httpMethod") == "OPTIONS":
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            "body": ""
+        }
+    logger.debug(f"Received event: {json.dumps(event)}")
+
     try:
         claims = event["requestContext"]["authorizer"]["claims"]
         patient_id = claims.get("sub")
@@ -36,6 +49,7 @@ def lambda_handler(event, context):
             logger.warning(f"Unauthorized access or appointment not found for patient {patient_id} and appointment {appointment_id}.")
             return {
                 "statusCode": 403,
+                "headers": {"Access-Control-Allow-Origin": "*"},
                 "body": json.dumps({"error": "Not authorized or appointment not found"})
             }
 
@@ -58,6 +72,7 @@ def lambda_handler(event, context):
         logger.info(f"Slot {slot_id} set back to available.")
         return {
             "statusCode": 200,
+            "headers": {"Access-Control-Allow-Origin": "*"},
             "body": json.dumps({"message": "Appointment cancelled"})
         }
 
@@ -66,5 +81,6 @@ def lambda_handler(event, context):
         logger.error(f"Error cancelling appointment: {str(e)}")
         return {
             "statusCode": 500,
+            "headers": {"Access-Control-Allow-Origin": "*"},
             "body": json.dumps({"error": str(e)})
         }

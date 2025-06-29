@@ -120,7 +120,7 @@ Resources:
             Method: POST
             Auth:
               Authorizer: NONE # No authentication for getting slots - this is public and can be accessed without authentication, temporarily.
-        OptionsSlotsApi:
+        BookOptionsApi:
           Type: Api
           Properties:
             Path: /book
@@ -192,15 +192,25 @@ Resources:
       Environment:
         Variables:
           APPOINTMENTS_TABLE: !Ref AppointmentsTable
+          SLOTS_TABLE: !Ref SlotsTable   # ✅ Added this line
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref AppointmentsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref SlotsTable
       Events:
         GetAppointmentsApi:
           Type: Api
           Properties:
             Path: /my-appointments
             Method: GET
+            Auth:
+              Authorizer: NONE # No authentication
+        MyAppointmentsOptionsApi:
+          Type: Api
+          Properties:
+            Path: /my-appointments
+            Method: OPTIONS
   CancelAppointmentFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -223,6 +233,13 @@ Resources:
           Properties:
             Path: /cancel
             Method: POST
+            Auth:
+              Authorizer: NONE # No authentication 
+        CancelOptionsApi:
+          Type: Api
+          Properties:
+            Path: /cancel
+            Method: OPTIONS
   RescheduleAppointmentFunction:
     Type: AWS::Serverless::Function
     Properties:
