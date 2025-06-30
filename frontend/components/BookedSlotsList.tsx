@@ -68,7 +68,7 @@ export default function BookedSlotsList() {
     <div className={styles.container}>
       <h2>Your Booked Appointments</h2>
       {successMsg && <p className={styles.success}>{successMsg}</p>}
-      <ul>
+      <ul className={styles.appointmentList}>
         {appointments.map((app) => (
           <li key={app.appointment_id} className={styles.appointmentItem}>
             <div className={styles.details}>
