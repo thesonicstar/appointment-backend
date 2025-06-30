@@ -21,50 +21,51 @@ slots_table = dynamodb.Table(os.environ["SLOTS_TABLE"])
 
 def lambda_handler(event, context):
     try:
-        claims = event["requestContext"]["authorizer"]["claims"]
-        patient_id = claims.get("sub")
-
-        body = json.loads(event["body"])
-        appointment_id = body.get("appointment_id")
-
-        # Get appointment
-        response = appointments_table.get_item(Key={"appointment_id": appointment_id})
-        logger.info(f"Retrieved appointment: {response}")   
-        appointment = response.get("Item")
-
-        if not appointment or appointment["patient_id"] != patient_id:
-            logger.warning(f"Unauthorized access or appointment not found for patient {patient_id} and appointment {appointment_id}.")
+        if event.get("httpMethod") == "OPTIONS":
             return {
-                "statusCode": 403,
-                "body": json.dumps({"error": "Not authorized or appointment not found"})
+                "statusCode": 200,
+                "headers": {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type"
+                },
+                "body": ""
             }
 
-        # Mark appointment as cancelled
+        logger.debug("Received event: %s", json.dumps(event))    
+        body = json.loads(event.get("body", "{}"))
+        appointment_id = body.get("appointment_id")
+
+        if not appointment_id:
+            logger.error("Missing appointment_id in request body")
+            raise ValueError("Missing appointment_id")
+
         appointments_table.update_item(
             Key={"appointment_id": appointment_id},
-            UpdateExpression="SET #status = :val",
-            ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues={":val": "cancelled"}
+            UpdateExpression="SET #s = :status",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":status": "cancelled"}
         )
-        logger.info(f"Appointment {appointment_id} cancelled successfully.")
+        logger.info("Appointment %s cancelled successfully", appointment_id)
 
-        # Set slot back to available
-        slot_id = appointment["slot_id"]
-        slots_table.update_item(
-            Key={"slot_id": slot_id},
-            UpdateExpression="SET available = :val",
-            ExpressionAttributeValues={":val": True}
-        )
-        logger.info(f"Slot {slot_id} set back to available.")
         return {
             "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
             "body": json.dumps({"message": "Appointment cancelled"})
         }
 
     except Exception as e:
-        logger.exception("Error cancelling appointment")
-        logger.error(f"Error cancelling appointment: {str(e)}")
+        logger.error("Error cancelling appointment: %s", str(e))
+        # Return a 500 error with the error message
         return {
             "statusCode": 500,
+            "headers": {
+                "Access-Control-Allow-Origin": "*"
+            },
             "body": json.dumps({"error": str(e)})
         }
+

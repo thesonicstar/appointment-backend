@@ -1,7 +1,7 @@
 {
-    "slot_id": { "S": "slot-002" },
+    "slot_id": { "S": "slot-010" },
     "datetime": { "S": "2025-06-24T10:00" },
     "available": { "BOOL": true },
-    "doctor_id": { "S": "doc-002" }
+    "doctor_id": { "S": "doc-010" }
   }
   
