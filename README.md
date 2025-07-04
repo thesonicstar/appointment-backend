@@ -32,8 +32,8 @@ The application follows a serverless, event-driven architecture:
 - **API Gateway:** Handles RESTful HTTP endpoints
 - **Lambda Functions:** Stateless compute functions for slot querying, booking, and cancellation
 - **DynamoDB:** Serverless NoSQL database for slots and appointments
-- 
-![HealthCare Architecture Diagram_v2](https://github.com/user-attachments/assets/441b22eb-3ced-4c8c-ab45-3b3a757dc9a3)
+
+![Healthcare Appointment System Diagram drawio](https://github.com/user-attachments/assets/d0bcda47-ad34-4404-bc03-8b6a2459434b)
 
 ---
 
